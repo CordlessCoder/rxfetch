@@ -45,7 +45,7 @@ impl Display for PrettyDevice<'_> {
         let name = name;
 
         // Shorten vendor
-        vendor
+        let vendor = vendor
             .find(' ')
             .map(|end| &vendor[..end])
             .and_then(|firstword| {

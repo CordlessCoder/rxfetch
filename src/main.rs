@@ -1,4 +1,3 @@
-#![allow(unused)]
 use std::time::Instant;
 
 use rxfetch::pci::PciDevIterBackend;
@@ -6,9 +5,9 @@ use rxfetch::pci::PciDevIterBackend;
 fn main() {
     env_logger::init();
 
-    use rxfetch::components::{gpu::PrettyDevice, *};
+    use rxfetch::components::gpu::PrettyDevice;
     let start = Instant::now();
-    let mut backend = rxfetch::pci::PciAutoIter::try_init().unwrap();
+    let backend = rxfetch::pci::PciAutoIter::try_init().unwrap();
     let devices: Vec<_> = backend
         .filter_map(|res| {
             res.map_err(|err| log::warn!("PCI Error emitted by backend: {err:?}"))
@@ -17,10 +16,10 @@ fn main() {
         .filter_map(|mut dev| {
             pci_ids::Device::from_vid_pid(
                 dev.vendor()
-                    .map_err(|err| log::warn!("Failed to fetch PCI vendor for {dev:?}"))
+                    .map_err(|err| log::warn!("Failed to fetch PCI vendor for {dev:?}: {err:?}"))
                     .ok()?,
                 dev.device()
-                    .map_err(|err| log::warn!("Failed to fetch PCI device for {dev:?}"))
+                    .map_err(|err| log::warn!("Failed to fetch PCI device for {dev:?}: {err:?}"))
                     .ok()?,
             ).or_else(||
             {

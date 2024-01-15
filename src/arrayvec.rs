@@ -6,6 +6,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A *strictly* array-allocated, fixed-capacity, dynamic length data structure. Really handy to
+/// avoid allocations.
 pub struct ArrayVec<T, const CAP: usize> {
     arr: [MaybeUninit<T>; CAP],
     // SAFETY: Values at ..len are valid

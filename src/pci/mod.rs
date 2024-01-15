@@ -63,6 +63,119 @@ impl PciDevice<NoProvider> {
         }
     }
 }
+
+pub enum AutoProvider {
+    #[cfg(unix)]
+    SysFS(SysBusProvider),
+    #[cfg(unix)]
+    ProcFS(ProcBusProvider),
+    None,
+}
+
+fn to_owned_dev(pcidev: &mut PciDevice<AutoProvider>) -> PciDevice<AutoProvider> {
+    let mut dev = PciDevice::new(0, 0, 0, 0).with_provider(AutoProvider::None);
+    std::mem::swap(pcidev, &mut dev);
+    dev
+}
+
+macro_rules! delegate {
+    ($(($name:ident -> $return:ty)),*$(,)?) => {
+        $(
+            fn $name(pcidev: &mut PciDevice<AutoProvider>) -> $return {
+        // Grab the device as an owned value
+        let dev = to_owned_dev(pcidev);
+        let PciDevice {
+            domain,
+            bus,
+            device,
+            function,
+            provider,
+        } = dev;
+        let (ret, dev) = match provider {
+            #[cfg(unix)]
+            AutoProvider::SysFS(provider) => {
+                let mut dev = PciDevice {
+                    domain,
+                    bus,
+                    device,
+                    function,
+                    provider,
+                };
+                let ret = SysBusProvider::$name(&mut dev);
+                let PciDevice {
+                    domain,
+                    bus,
+                    device,
+                    function,
+                    provider,
+                } = dev;
+
+                let dev = PciDevice {
+                    domain,
+                    bus,
+                    device,
+                    function,
+                    provider: AutoProvider::SysFS(provider),
+                };
+                (ret, dev)
+            }
+            #[cfg(unix)]
+            AutoProvider::ProcFS(provider) => {
+                let mut dev = PciDevice {
+                    domain,
+                    bus,
+                    device,
+                    function,
+                    provider,
+                };
+                let ret = ProcBusProvider::$name(&mut dev);
+                let PciDevice {
+                    domain,
+                    bus,
+                    device,
+                    function,
+                    provider,
+                } = dev;
+
+                let dev = PciDevice {
+                    domain,
+                    bus,
+                    device,
+                    function,
+                    provider: AutoProvider::ProcFS(provider),
+                };
+                (ret, dev)
+            }
+            other => (
+                Err(PciBackendError::NotAvailable),
+                PciDevice {
+                    domain,
+                    bus,
+                    device,
+                    function,
+                    provider: other,
+                },
+            ),
+        };
+        // Restore the device
+        *pcidev = dev;
+        ret
+            }
+        )*
+    };
+}
+
+impl PciInfoProvider for AutoProvider {
+    delegate![
+        (get_class -> Result<ArrayVec<u8, 32>, PciBackendError>),
+        (get_vendor -> Result<u16, PciBackendError>),
+        (get_device -> Result<u16, PciBackendError>),
+        (get_revision -> Result<u8, PciBackendError>),
+        (get_susbystem_vid -> Result<u16, PciBackendError>),
+        (get_susbystem_did -> Result<u16, PciBackendError>),
+    ];
+}
+
 impl<P: PciInfoProvider> PciDevice<P> {
     pub fn class(&mut self) -> Result<ArrayVec<u8, 32>, PciBackendError> {
         P::get_class(self)
@@ -166,6 +279,67 @@ impl Drop for WrapPath<'_> {
     }
 }
 
-// TODO: Add backends for /proc/bus/pci and /proc/pci, as well as a MacOS and Windows backend
+// TODO: Add backends for MacOS and Windows
 
-pub struct PciDevIter {}
+/// An iterator over attached PCI devices that picks its device fetching backend automatically
+pub enum PciAutoIter {
+    #[cfg(unix)]
+    SysFS(SysBusBackend),
+    #[cfg(unix)]
+    ProcFS(ProcBusBackend),
+}
+
+impl PciDevIterBackend for PciAutoIter {
+    type BackendInfoProvider = AutoProvider;
+
+    fn try_init() -> Result<Self, PciBackendError> {
+        let sysfs = |_| SysBusBackend::try_init().map(|s| PciAutoIter::SysFS(s));
+        let proc = |_| ProcBusBackend::try_init().map(|s| PciAutoIter::ProcFS(s));
+        sysfs(()).or_else(proc)
+    }
+}
+
+impl Iterator for PciAutoIter {
+    type Item = Result<PciDevice<AutoProvider>, PciBackendError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            PciAutoIter::SysFS(b) => b.next().map(|r| {
+                r.map(|d| {
+                    let PciDevice {
+                        domain,
+                        bus,
+                        device,
+                        function,
+                        provider,
+                    } = d;
+                    PciDevice {
+                        domain,
+                        bus,
+                        device,
+                        function,
+                        provider: AutoProvider::SysFS(provider),
+                    }
+                })
+            }),
+            PciAutoIter::ProcFS(b) => b.next().map(|r| {
+                r.map(|d| {
+                    let PciDevice {
+                        domain,
+                        bus,
+                        device,
+                        function,
+                        provider,
+                    } = d;
+                    PciDevice {
+                        domain,
+                        bus,
+                        device,
+                        function,
+                        provider: AutoProvider::ProcFS(provider),
+                    }
+                })
+            }),
+        }
+    }
+}

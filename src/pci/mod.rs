@@ -12,8 +12,14 @@ use winnow::{
     stream::{self, Stream, StreamIsPartial},
     token, BStr,
 };
+#[cfg(unix)]
 mod linux_sysfs;
+#[cfg(unix)]
 pub use linux_sysfs::*;
+#[cfg(unix)]
+mod linux_procfs;
+#[cfg(unix)]
+pub use linux_procfs::*;
 
 use crate::{parse::FixedLengthHex, ArrayVec};
 
@@ -73,6 +79,9 @@ impl<P: PciInfoProvider> PciDevice<P> {
     pub fn susbystem_did(&mut self) -> Result<u16, PciBackendError> {
         P::get_susbystem_did(self)
     }
+    pub fn revision(&mut self) -> Result<u8, PciBackendError> {
+        P::get_revision(self)
+    }
     pub fn is_gpu(&mut self) -> Result<bool, PciBackendError> {
         Ok(self.class()?.get(0).is_some_and(|&class| class == 3))
     }
@@ -110,6 +119,7 @@ pub trait PciInfoProvider: Sized {
     fn get_device(dev: &mut PciDevice<Self>) -> Result<u16, PciBackendError>;
     fn get_susbystem_vid(dev: &mut PciDevice<Self>) -> Result<u16, PciBackendError>;
     fn get_susbystem_did(dev: &mut PciDevice<Self>) -> Result<u16, PciBackendError>;
+    fn get_revision(dev: &mut PciDevice<Self>) -> Result<u8, PciBackendError>;
 }
 
 pub trait PciDevIterBackend:

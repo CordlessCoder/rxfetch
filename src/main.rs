@@ -7,8 +7,8 @@ fn main() {
     env_logger::init();
 
     use rxfetch::components::{gpu::PrettyDevice, *};
-    let start = Instant::now();
     let mut backend = rxfetch::pci::SysBusBackend::try_init().unwrap();
+    let start = Instant::now();
     let devices: Vec<_> = backend
         .filter_map(|res| {
             res.map_err(|err| log::warn!("PCI Error emitted by backend: {err:?}"))
@@ -35,10 +35,10 @@ fn main() {
             )
         }).collect();
     let took = start.elapsed();
-    println!("Fetching all device data took {took:?}");
     devices
         .iter()
-        .for_each(|dev| println!("{:?}", PrettyDevice(dev)))
+        .for_each(|dev| println!("{:?}", PrettyDevice(dev)));
+    println!("Fetching all device data took {took:?}");
     // while let Some(dev) = backend.next() {
     //     let Ok(mut dev) = dev else {
     //         continue;

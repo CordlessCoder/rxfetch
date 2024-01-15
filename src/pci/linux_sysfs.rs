@@ -138,6 +138,18 @@ impl PciInfoProvider for SysBusProvider {
             .map(|bytes| (unhex(bytes[0]) << 4) + unhex(bytes[1]))
             .fold(0, |acc, hex| (acc << 8) | hex as u16))
     }
+    fn get_revision(dev: &mut PciDevice<Self>) -> Result<u8, PciBackendError> {
+        let path = WrapPath::new(&mut dev.provider.path, "revision");
+        let path = path.as_path();
+
+        let mut file = fs::File::open(path).map_err(|err| PciBackendError::IOError(err))?;
+
+        let mut buf: ArrayVec<u8, 32> = ArrayVec::new();
+        std::io::copy(&mut file, &mut buf).map_err(|err| PciBackendError::IOError(err))?;
+
+        let bytes = buf.get(2..4).ok_or(PciBackendError::InvalidDevice)?;
+        Ok((unhex(bytes[0]) << 4) | unhex(bytes[1]))
+    }
 }
 
 impl PciDevIterBackend for SysBusBackend {

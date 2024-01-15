@@ -92,6 +92,7 @@ impl<B> Debug for PciDevice<B> {
         dev.field("bus", &HexDebug(self.bus));
         dev.field("device", &HexDebug(self.device));
         dev.field("function", &HexDebug(self.function));
+        dev.finish_non_exhaustive()?;
         Ok(())
     }
 }
@@ -111,12 +112,13 @@ pub trait PciInfoProvider: Sized {
     fn get_susbystem_did(dev: &mut PciDevice<Self>) -> Result<u16, PciBackendError>;
 }
 
-pub trait PciDevIterBackend: Sized {
+pub trait PciDevIterBackend:
+    Sized + Iterator<Item = Result<PciDevice<Self::BackendInfoProvider>, PciBackendError>>
+{
     type BackendInfoProvider: PciInfoProvider;
 
     /// Attempt to initialize the backend
     fn try_init() -> Result<Self, PciBackendError>;
-    fn next(&mut self) -> Option<Result<PciDevice<Self::BackendInfoProvider>, PciBackendError>>;
 }
 
 struct WrapPath<'b> {

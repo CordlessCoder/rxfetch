@@ -65,8 +65,8 @@ impl PciInfoProvider for SysBusProvider {
         let mut buf: ArrayVec<u8, 64> = ArrayVec::new();
         std::io::copy(&mut file, &mut buf).map_err(|err| PciBackendError::IOError(err))?;
         Ok(buf
-            // Skip leading 0x
             .chunks_exact(2)
+            // Skip leading 0x
             .skip(1)
             .map(|bytes| (unhex(bytes[0]) << 4) + unhex(bytes[1]))
             .collect())
@@ -80,6 +80,7 @@ impl PciInfoProvider for SysBusProvider {
         let mut buf: ArrayVec<u8, 32> = ArrayVec::new();
         std::io::copy(&mut file, &mut buf).map_err(|err| PciBackendError::IOError(err))?;
 
+        // Skip leading 0x
         let bytes = buf.get(2..6).ok_or(PciBackendError::InvalidDevice)?;
         Ok(bytes
             .chunks_exact(2)
@@ -97,6 +98,7 @@ impl PciInfoProvider for SysBusProvider {
         file.read(&mut buf)
             .map_err(|err| PciBackendError::IOError(err))?;
 
+        // Skip leading 0x
         let bytes = buf.get(2..6).ok_or(PciBackendError::InvalidDevice)?;
         Ok(bytes
             .chunks_exact(2)
@@ -112,11 +114,10 @@ impl PciInfoProvider for SysBusProvider {
         let mut buf: ArrayVec<u8, 32> = ArrayVec::new();
         std::io::copy(&mut file, &mut buf).map_err(|err| PciBackendError::IOError(err))?;
 
+        // Skip leading 0x
         let bytes = buf.get(2..6).ok_or(PciBackendError::InvalidDevice)?;
         Ok(bytes
             .chunks_exact(2)
-            // Skip leading 0x
-            .skip(1)
             .map(|bytes| (unhex(bytes[0]) << 4) + unhex(bytes[1]))
             .fold(0, |acc, hex| (acc << 8) | hex as u16))
     }
@@ -147,7 +148,11 @@ impl PciDevIterBackend for SysBusBackend {
             fs::read_dir("/sys/bus/pci/devices").map_err(|_| PciBackendError::NotAvailable)?;
         Ok(Self { dir_iter })
     }
-    fn next(&mut self) -> Option<Result<PciDevice<Self::BackendInfoProvider>, PciBackendError>> {
+}
+impl Iterator for SysBusBackend {
+    type Item = Result<PciDevice<SysBusProvider>, PciBackendError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
         while let Some(dir) = self.dir_iter.next() {
             let dir = match dir {
                 Ok(dir) => dir,

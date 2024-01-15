@@ -7,20 +7,56 @@ fn main() {
     env_logger::init();
 
     use rxfetch::components::{gpu::PrettyDevice, *};
-    // let start = Instant::now();
+    let start = Instant::now();
     let mut backend = rxfetch::pci::SysBusBackend::try_init().unwrap();
-    while let Some(dev) = backend.next() {
-        let Ok(mut dev) = dev else {
-            continue;
-        };
-        if dev.is_gpu().unwrap() {
-            let dev = pci_ids::Device::from_vid_pid(dev.vendor().unwrap(), dev.device().unwrap())
-                .unwrap();
-            println!("{}", PrettyDevice(dev))
-        };
-    }
-    // let took = start.elapsed();
-    // println!("New backend took {took:?}");
+    let devices: Vec<_> = backend
+        .filter_map(|res| {
+            res.map_err(|err| log::warn!("PCI Error emitted by backend: {err:?}"))
+                .ok()
+        })
+        .filter_map(|mut dev| {
+            pci_ids::Device::from_vid_pid(
+                dev.vendor()
+                    .map_err(|err| log::warn!("Failed to fetch PCI vendor for {dev:?}"))
+                    .ok()?,
+                dev.device()
+                    .map_err(|err| log::warn!("Failed to fetch PCI device for {dev:?}"))
+                    .ok()?,
+            ).or_else(||
+            {
+                log::trace!(
+                    "Device not found in PCI ID: {dev:?}, vendor: {vendor:?}, device: {device:?}, class: {class:?}",
+                    vendor = dev.vendor(),
+                    device = dev.device(),
+                    class = dev.class(),
+                );
+                None
+            }
+            )
+        }).collect();
+    let took = start.elapsed();
+    println!("Fetching all device data took {took:?}");
+    devices
+        .iter()
+        .for_each(|dev| println!("{:?}", PrettyDevice(dev)))
+    // while let Some(dev) = backend.next() {
+    //     let Ok(mut dev) = dev else {
+    //         continue;
+    //     };
+    //     // if dev.is_gpu().is_ok_and(|b| b) {
+    //     let Some(dev) = pci_ids::Device::from_vid_pid(dev.vendor().unwrap(), dev.device().unwrap())
+    //     else {
+    //         log::trace!(
+    //             "Device not found in PCI ID: {dev:?}, vendor: {vendor:?}, device: {device:?}, class: {class:?}",
+    //             vendor = dev.vendor(),
+    //             device = dev.device(),
+    //             class = dev.class(),
+    //         );
+    //         continue;
+    //     };
+    //     println!("{:?}", PrettyDevice(dev))
+    //     // };
+    // }
 }
 // use std::{
 //     fs::File,

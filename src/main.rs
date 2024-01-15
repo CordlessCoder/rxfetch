@@ -37,5 +37,7 @@ fn main() {
     devices
         .iter()
         .for_each(|dev| println!("{:?}", PrettyDevice(dev)));
+    let total = start.elapsed();
     println!("Fetching all device data took {took:?}");
+    println!("Total runtime(including printing): {total:?}");
 }

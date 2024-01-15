@@ -81,7 +81,7 @@ fn to_owned_dev(pcidev: &mut PciDevice<AutoProvider>) -> PciDevice<AutoProvider>
 macro_rules! delegate {
     ($(($name:ident -> $return:ty)),*$(,)?) => {
         $(
-            fn $name(pcidev: &mut PciDevice<AutoProvider>) -> $return {
+    fn $name(pcidev: &mut PciDevice<AutoProvider>) -> $return {
         // Grab the device as an owned value
         let dev = to_owned_dev(pcidev);
         let PciDevice {
@@ -160,7 +160,7 @@ macro_rules! delegate {
         // Restore the device
         *pcidev = dev;
         ret
-            }
+    }
         )*
     };
 }

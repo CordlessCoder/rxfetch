@@ -38,7 +38,7 @@ fn parse_device<
     stream: Source<'i>,
 ) -> Result<PciDevice<NoProvider>, winnow::error::ParseError<Source<'i>, E>>
 where {
-    let hex = |len| FixedLengthHex(len);
+    let hex = FixedLengthHex;
     winnow::seq!(
     PciDevice {
         domain: hex(4),

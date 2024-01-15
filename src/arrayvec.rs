@@ -224,27 +224,3 @@ impl<const CAP: usize> Write for ArrayVec<u8, CAP> {
         Ok(())
     }
 }
-
-#[repr(transparent)]
-struct Loud<T: Debug>(T);
-impl<T: Debug> Drop for Loud<T> {
-    fn drop(&mut self) {
-        println!("{:?} dropped!", self.0)
-    }
-}
-impl<T: Debug> Debug for Loud<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-impl<T: Debug + Display> Display for Loud<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <T as Display>::fmt(&self.0, f)
-    }
-}
-
-fn main() {
-    let mut arr: ArrayVec<Loud<u8>, 1024> = ArrayVec::new();
-    arr.extend([1, 2, 3, 4, 5, 6, 7, 8].map(Loud));
-    arr.into_iter().take(4).for_each(|x| println!("{x}"));
-}

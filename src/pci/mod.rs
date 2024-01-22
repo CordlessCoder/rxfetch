@@ -20,6 +20,7 @@ pub use linux_sysfs::*;
 mod linux_procfs;
 #[cfg(unix)]
 pub use linux_procfs::*;
+mod id_parser;
 
 use crate::{parse::FixedLengthHex, ArrayVec};
 

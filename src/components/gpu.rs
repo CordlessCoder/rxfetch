@@ -51,7 +51,8 @@ impl Display for PrettyDevice<'_> {
             .and_then(|firstword| {
                 firstword
                     .bytes()
-                    .all(|b| b.is_ascii_uppercase())
+                    .next()
+                    .is_some_and(|b| b.is_ascii_uppercase())
                     .then_some(firstword)
             })
             .unwrap_or(vendor.trim());

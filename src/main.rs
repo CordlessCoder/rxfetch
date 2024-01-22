@@ -1,18 +1,22 @@
 use std::time::Instant;
 
-use rxfetch::pci::PciDevIterBackend;
+use rxfetch::{components::name::SystemName, pci::PciDevIterBackend};
 
 fn main() {
     env_logger::init();
 
+    // let name = SystemName::get();
+    // dbg!(&name);
+
     use rxfetch::components::gpu::PrettyDevice;
     let start = Instant::now();
     let backend = rxfetch::pci::PciAutoIter::try_init().unwrap();
-    let devices: Vec<_> = backend
+    let devices = backend
         .filter_map(|res| {
             res.map_err(|err| log::warn!("PCI Error emitted by backend: {err:?}"))
                 .ok()
         })
+    .filter_map(|mut dev|dev.is_gpu().is_ok_and(|gpu|gpu).then_some(dev)).take(2)
         .filter_map(|mut dev| {
             pci_ids::Device::from_vid_pid(
                 dev.vendor()
@@ -32,12 +36,8 @@ fn main() {
                 None
             }
             )
-        }).collect();
-    let took = start.elapsed();
-    devices
-        .iter()
-        .for_each(|dev| println!("{:?}", PrettyDevice(dev)));
+        });
+    devices.for_each(|dev| println!("{}", PrettyDevice(dev)));
     let total = start.elapsed();
-    println!("Fetching all device data took {took:?}");
     println!("Total runtime(including printing): {total:?}");
 }

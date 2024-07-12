@@ -3,5 +3,26 @@ name = "rxfetch"
 version = "0.1.0"
 edition = "2021"
 
+[profile.dev]
+debug ="full"
+
+[profile.release]
+lto = true
+strip = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+libc = "0.2"
+pci-ids = { version = "0.2"}
+thiserror = "1.0.62"
+tracing = { version = "0.1", features = ["release_max_level_warn"] }
+tracing-subscriber = { version = "0.3.18", features = ["time", "tracing"] }
+winnow = { version = "0.6", features = ["simd"] }
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "pci"
+harness = false

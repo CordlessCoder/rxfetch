@@ -6,21 +6,21 @@ fn pci_iter(c: &mut Criterion) {
         b.iter_batched(
             || (),
             |_| PciAutoIter::init(),
-            criterion::BatchSize::LargeInput,
+            criterion::BatchSize::PerIteration,
         );
     });
     c.bench_function("Iterate over all PCI devices", |b| {
         b.iter_batched_ref(
             || PciAutoIter::init(),
             |g| g.count(),
-            criterion::BatchSize::LargeInput,
+            criterion::BatchSize::PerIteration,
         )
     });
     c.bench_function("Drop PCI iter", |b| {
         b.iter_batched(
             || PciAutoIter::init(),
             |g| std::mem::drop(g),
-            criterion::BatchSize::LargeInput,
+            criterion::BatchSize::PerIteration,
         )
     });
 }

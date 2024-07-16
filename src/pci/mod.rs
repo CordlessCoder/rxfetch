@@ -198,7 +198,7 @@ impl<P: PciInfoProvider> PciDevice<P> {
         P::get_revision(self)
     }
     pub fn is_gpu(&mut self) -> Result<bool, PciBackendError> {
-        Ok(self.class()?.get(0).is_some_and(|&class| class == 3))
+        Ok(self.class()?.first().is_some_and(|&class| class == 3))
     }
 }
 
@@ -221,6 +221,15 @@ impl<B> Debug for PciDevice<B> {
     }
 }
 
+// TODO: Add support for PCI resources, to eventually get available vram
+// decode flags according to https://elixir.bootlin.com/linux/latest/source/include/linux/ioport.h
+// struct PciDeviceResource {
+//     addr: usize,
+//     len: usize,
+//     prefetch: bool,
+//     prefetch: bool,
+// }
+
 #[derive(Debug)]
 pub enum PciBackendError {
     NotAvailable,
@@ -235,6 +244,7 @@ pub trait PciInfoProvider: Sized {
     fn get_susbystem_vid(dev: &mut PciDevice<Self>) -> Result<u16, PciBackendError>;
     fn get_susbystem_did(dev: &mut PciDevice<Self>) -> Result<u16, PciBackendError>;
     fn get_revision(dev: &mut PciDevice<Self>) -> Result<u8, PciBackendError>;
+    // fn get_resources(dev: &mut PciDevice<Self>) -> Result<ArrayVec<,32>, PciBackendError>;
 }
 
 pub trait PciDevIterBackend:
@@ -251,6 +261,7 @@ pub trait PciDevIterBackend:
     }
 }
 
+#[derive(Debug)]
 struct WrapPath<'b> {
     path: &'b mut PathBuf,
     count: usize,
@@ -274,7 +285,7 @@ impl<'b> Deref for WrapPath<'b> {
 
 impl<'b> DerefMut for WrapPath<'b> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.path
+        self.path
     }
 }
 
@@ -300,8 +311,8 @@ impl PciDevIterBackend for PciAutoIter {
     type BackendInfoProvider = AutoProvider;
 
     fn try_init() -> Result<Self, PciBackendError> {
-        let sysfs = |_| SysBusBackend::try_init().map(|s| PciAutoIter::SysFS(s));
-        let proc = |_| ProcBusBackend::try_init().map(|s| PciAutoIter::ProcFS(s));
+        let sysfs = |_| SysBusBackend::try_init().map(PciAutoIter::SysFS);
+        let proc = |_| ProcBusBackend::try_init().map(PciAutoIter::ProcFS);
         sysfs(()).or_else(proc)
     }
 }

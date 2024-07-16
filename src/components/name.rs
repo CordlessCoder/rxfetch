@@ -7,10 +7,15 @@ pub fn current_uid() -> u32 {
     unsafe { libc::getuid() }
 }
 
+/// # Safety
+/// A buffer that can viewed as a (possibly uninitialized) byte slice with the given capacity
 pub unsafe trait BackingBuffer {
     fn as_ptr_cap(&mut self) -> (*mut u8, usize);
 }
 
+/// # Safety
+/// A buffer that can viewed as a (possibly uninitialized) byte slice with the given capacity
+/// and can double its capacity on demand
 pub unsafe trait GrowableBackingBuffer: BackingBuffer {
     /// Doubles the capacity of the buffer, and makes sure it's at least 128 bytes
     /// May discard all data currently in the buffer

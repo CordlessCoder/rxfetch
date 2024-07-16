@@ -60,10 +60,9 @@ impl PciInfoProvider for SysBusProvider {
         // scope
         let class = WrapPath::new(&mut dev.provider.path, "class");
 
-        let class = class.as_path();
-        let mut file = fs::File::open(class).map_err(|err| PciBackendError::IOError(err))?;
+        let mut file = fs::File::open(&*class).map_err(PciBackendError::IOError)?;
         let mut buf: ArrayVec<u8, 64> = ArrayVec::new();
-        std::io::copy(&mut file, &mut buf).map_err(|err| PciBackendError::IOError(err))?;
+        std::io::copy(&mut file, &mut buf).map_err(PciBackendError::IOError)?;
         Ok(buf
             .chunks_exact(2)
             // Skip leading 0x
@@ -75,10 +74,10 @@ impl PciInfoProvider for SysBusProvider {
         let vendor = WrapPath::new(&mut dev.provider.path, "vendor");
         let vendor = vendor.as_path();
 
-        let mut file = fs::File::open(vendor).map_err(|err| PciBackendError::IOError(err))?;
+        let mut file = fs::File::open(vendor).map_err(PciBackendError::IOError)?;
 
         let mut buf: ArrayVec<u8, 32> = ArrayVec::new();
-        std::io::copy(&mut file, &mut buf).map_err(|err| PciBackendError::IOError(err))?;
+        std::io::copy(&mut file, &mut buf).map_err(PciBackendError::IOError)?;
 
         // Skip leading 0x
         let bytes = buf.get(2..6).ok_or(PciBackendError::InvalidDevice)?;
@@ -92,11 +91,10 @@ impl PciInfoProvider for SysBusProvider {
         let device = WrapPath::new(&mut dev.provider.path, "device");
         let device = device.as_path();
 
-        let mut file = fs::File::open(device).map_err(|err| PciBackendError::IOError(err))?;
+        let mut file = fs::File::open(device).map_err(PciBackendError::IOError)?;
 
         let mut buf = [0; 32];
-        file.read(&mut buf)
-            .map_err(|err| PciBackendError::IOError(err))?;
+        file.read(&mut buf).map_err(PciBackendError::IOError)?;
 
         // Skip leading 0x
         let bytes = buf.get(2..6).ok_or(PciBackendError::InvalidDevice)?;
@@ -109,10 +107,10 @@ impl PciInfoProvider for SysBusProvider {
         let path = WrapPath::new(&mut dev.provider.path, "subsystem_vendor");
         let path = path.as_path();
 
-        let mut file = fs::File::open(path).map_err(|err| PciBackendError::IOError(err))?;
+        let mut file = fs::File::open(path).map_err(PciBackendError::IOError)?;
 
         let mut buf: ArrayVec<u8, 32> = ArrayVec::new();
-        std::io::copy(&mut file, &mut buf).map_err(|err| PciBackendError::IOError(err))?;
+        std::io::copy(&mut file, &mut buf).map_err(PciBackendError::IOError)?;
 
         // Skip leading 0x
         let bytes = buf.get(2..6).ok_or(PciBackendError::InvalidDevice)?;
@@ -125,10 +123,10 @@ impl PciInfoProvider for SysBusProvider {
         let path = WrapPath::new(&mut dev.provider.path, "subsystem_device");
         let path = path.as_path();
 
-        let mut file = fs::File::open(path).map_err(|err| PciBackendError::IOError(err))?;
+        let mut file = fs::File::open(path).map_err(PciBackendError::IOError)?;
 
         let mut buf: ArrayVec<u8, 32> = ArrayVec::new();
-        std::io::copy(&mut file, &mut buf).map_err(|err| PciBackendError::IOError(err))?;
+        std::io::copy(&mut file, &mut buf).map_err(PciBackendError::IOError)?;
 
         let bytes = buf.get(2..6).ok_or(PciBackendError::InvalidDevice)?;
         Ok(bytes
@@ -138,14 +136,15 @@ impl PciInfoProvider for SysBusProvider {
             .map(|bytes| (unhex(bytes[0]) << 4) + unhex(bytes[1]))
             .fold(0, |acc, hex| (acc << 8) | hex as u16))
     }
+
     fn get_revision(dev: &mut PciDevice<Self>) -> Result<u8, PciBackendError> {
         let path = WrapPath::new(&mut dev.provider.path, "revision");
         let path = path.as_path();
 
-        let mut file = fs::File::open(path).map_err(|err| PciBackendError::IOError(err))?;
+        let mut file = fs::File::open(path).map_err(PciBackendError::IOError)?;
 
         let mut buf: ArrayVec<u8, 32> = ArrayVec::new();
-        std::io::copy(&mut file, &mut buf).map_err(|err| PciBackendError::IOError(err))?;
+        std::io::copy(&mut file, &mut buf).map_err(PciBackendError::IOError)?;
 
         let bytes = buf.get(2..4).ok_or(PciBackendError::InvalidDevice)?;
         Ok((unhex(bytes[0]) << 4) | unhex(bytes[1]))
@@ -165,7 +164,7 @@ impl Iterator for SysBusBackend {
     type Item = Result<PciDevice<SysBusProvider>, PciBackendError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(dir) = self.dir_iter.next() {
+        for dir in self.dir_iter.by_ref() {
             let dir = match dir {
                 Ok(dir) => dir,
                 Err(err) => return Some(Err(PciBackendError::IOError(err))),
@@ -173,7 +172,7 @@ impl Iterator for SysBusBackend {
             let name = dir.file_name();
             let name = name.as_encoded_bytes();
 
-            let dev = match parse_device::<()>(name.into()) {
+            let dev = match parse_device::<()>(name) {
                 Ok(dev) => dev,
                 Err(err) => {
                     warn!(

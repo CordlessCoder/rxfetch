@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use rxfetch::{
     components::name::{current_uid, PwuId, SystemName},
-    pci::PciDevIterBackend,
+    pci::{PciDevIterBackend, PciInfoProvider, SysBusProvider},
 };
 use tracing::{trace, warn};
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -14,16 +14,17 @@ fn main() {
         .init();
 
     let start = Instant::now();
-    let systemname = SystemName::get();
-    let pwuid = PwuId::get_alloc(current_uid()).unwrap();
-    println!(
-        "{user}@{hostname}",
-        user = pwuid.name(),
-        hostname = systemname.node()
-    );
+    // let systemname = SystemName::get();
+    // let pwuid = PwuId::get_alloc(current_uid()).unwrap();
+    // _ = dbg!(pwuid, systemname);
+    // println!(
+    //     "{user}@{hostname}\n{systemname:?}",
+    //     user = pwuid.name(),
+    //     hostname = systemname.node()
+    // );
 
     use rxfetch::components::gpu::PrettyDevice;
-    let backend = rxfetch::pci::PciAutoIter::try_init().unwrap();
+    let backend = rxfetch::pci::SysBusBackend::try_init().unwrap();
     let devices = backend
         .filter_map(|res| {
             res.map_err(|err| warn!("PCI Error emitted by backend: {err:?}"))
